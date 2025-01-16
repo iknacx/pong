@@ -1,32 +1,34 @@
 const std = @import("std");
 const builtin = @import("builtin");
+
 pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{
-        .default_target = .{
-            .os_tag = .windows,
-            .abi = .msvc,
-        },
-    });
+    const windows = b.resolveTargetQuery(.{ .os_tag = .windows, .abi = .msvc });
+    const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
         .name = "pong",
         .root_source_file = b.path("src/main.zig"),
-        .target = target,
+        .target = if (builtin.os.tag == .windows) windows else target,
         .optimize = optimize,
     });
 
-    exe.addIncludePath(b.path("thirdparty/glad/include"));
-    exe.addIncludePath(b.path("thirdparty/glfw/include"));
-    exe.addLibraryPath(b.path("thirdparty/glfw/build/src/Release"));
-
     exe.linkLibC();
-    exe.linkSystemLibrary("glfw3");
-    exe.linkSystemLibrary("gdi32");
-    exe.linkSystemLibrary("user32");
-    exe.linkSystemLibrary("shell32");
-    exe.linkSystemLibrary("opengl32");
 
+    if (builtin.os.tag == .windows) {
+        exe.addIncludePath(b.path("thirdparty/glfw/include"));
+        exe.addLibraryPath(b.path("thirdparty/glfw/build/src/Release"));
+
+        exe.linkSystemLibrary("glfw3");
+        exe.linkSystemLibrary("gdi32");
+        exe.linkSystemLibrary("user32");
+        exe.linkSystemLibrary("shell32");
+        exe.linkSystemLibrary("opengl32");
+    } else {
+        exe.linkSystemLibrary("glfw");
+    }
+
+    exe.addIncludePath(b.path("thirdparty/glad/include"));
     exe.addCSourceFile(.{ .file = b.path("thirdparty/glad/src/glad.c") });
 
     b.installArtifact(exe);
